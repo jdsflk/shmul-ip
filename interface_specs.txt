@@ -1,9 +1,9 @@
 Felhasználás:
 	MMIO perifériavezérlő:
-		my_addr generic integer 16 bit
-	user logic external interface:
-		enable_interrupt boolean
+		my_addr_0 generic integer 16 bit (szorzótényező érkezését jelzi)
+		my_addr_1 generic integer 16 bit (intr enable állítását jelzi)
 	user logic:
+		intr_enable in boolean
 		op_1_H in integer 16 bit
 		op_1_L in integer 16 bit
 		op_2_H in integer 16 bit
