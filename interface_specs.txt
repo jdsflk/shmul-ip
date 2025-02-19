@@ -1,15 +1,15 @@
 Felhasználás:
 	MMIO perifériavezérlő:
-		my_addr generic
+		my_addr generic integer 16 bit
 	user logic external interface:
-		enable_interrupt
+		enable_interrupt boolean
 	user logic:
-		op_1_H in
-		op_1_L in
-		op_2_H in
-		op_2_L in 
-		result_0 out
-		result_1 out
-		result_2 out
-		result_3 out
-		ready out
+		op_1_H in integer 16 bit
+		op_1_L in integer 16 bit
+		op_2_H in integer 16 bit
+		op_2_L in integer 16 bit
+		result_0 out integer 16 bit
+		result_1 out integer 16 bit
+		result_2 out integer 16 bit
+		result_3 out integer 16 bit
+		ready out boolean
