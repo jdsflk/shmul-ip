@@ -1,0 +1,15 @@
+Felhasználás:
+	MMIO perifériavezérlő:
+		my_addr generic
+	user logic external interface:
+		enable_interrupt
+	user logic:
+		op_1_H in
+		op_1_L in
+		op_2_H in
+		op_2_L in 
+		result_0 out
+		result_1 out
+		result_2 out
+		result_3 out
+		ready out
