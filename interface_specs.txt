@@ -1,13 +1,13 @@
 Felhasználás:
 	MMIO perifériavezérlő:
 		operand_size: (szintézis paraméter) generic integer 5 bit (hány bitesek az operandusok)  
-		my_addr_0:      generic integer 16 bit (szorzótényező érkezését jelzi)
-		my_addr_1:      generic integer 1 bit  (intr enable állítását jelzi)
-		my_addr_2.1:    generic integer 16 bit (végeredmény 0-15  innen olvasható ki)
-		my_addr_2.2:    generic integer 16 bit (végeredmény 16-31 innen olvasható ki)
-		my_addr_2.3:    generic integer 16 bit (végeredmény 32-47 innen olvasható ki)
-		my_addr_2.4:    generic integer 16 bit (végeredmény 48-63 innen olvasható ki)
-		my_addr_3:      generic integer 1 bit  (készen van-e a szorzás, ha nincs engedélyezve a megszakítás)
+		operand:      generic integer 16 bit (szorzótényező érkezését jelzi)
+		intr_en:      generic integer 1 bit  (intr enable állítását jelzi)
+		product_1:    generic integer 16 bit (végeredmény 0-15  innen olvasható ki)
+		product_2:    generic integer 16 bit (végeredmény 16-31 innen olvasható ki)
+		product_3:    generic integer 16 bit (végeredmény 32-47 innen olvasható ki)
+		product_4:    generic integer 16 bit (végeredmény 48-63 innen olvasható ki)
+		ready:      generic integer 1 bit  (készen van-e a szorzás, ha nincs engedélyezve a megszakítás)
 	user logic:
 		start: in boolean
 		intr_enable: in boolean
