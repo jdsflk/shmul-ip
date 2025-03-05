@@ -29,7 +29,7 @@ architecture rtl of main is
   signal B                       : std_logic_vector (operand_size - 1 downto 0);
   signal Q                       : std_logic_vector (operand_size - 1 downto 0);
   signal A                       : std_logic_vector (2 * operand_size - 1 downto 0);
-  signal N                       : integer range 1 to 32;
+  signal N                       : integer range 0 to 32;
 
   signal negative_result         : std_logic;
 
@@ -57,6 +57,7 @@ begin
                     B <= op_1;
                     Q <= op_2;
                     A <= (others => '0');
+					N <= operand_size;
                     ready <= '0';
                     state <= check_for_sign;
                 when check_for_sign =>
