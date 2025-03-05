@@ -41,9 +41,9 @@ begin
     );
   L_TEST_SEQ : process begin
     wait for 100 ns;
-    as_reset_n <= '0';
+    as_reset_n <= '0'; recover_fsm_n <= '0';
     wait for 100 ns;
-    as_reset_n <= '1';
+    as_reset_n <= '1'; recover_fsm_n <= '1';
     wait until rising_edge(clk);
     op_1 <= std_logic_vector(to_unsigned(2, 32));
     op_2 <= std_logic_vector(to_unsigned(3, 32));
