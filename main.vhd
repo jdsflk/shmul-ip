@@ -60,7 +60,7 @@ begin
                     ready <= '0';
                     state <= check_for_sign;
                 when check_for_sign =>
-                    if(boolean(B(operand_size - 1)) xor boolean(Q(operand_size - 1) = '1')) then
+                    if((B(operand_size - 1)) /= (Q(operand_size - 1))) then
                         negative_result <= '1';
                     else
                         negative_result <= '0';
