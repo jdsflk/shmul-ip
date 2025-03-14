@@ -65,11 +65,11 @@ begin
 							data_2_dmem								=> acu_data
 						);
 	
-	L_ACU_MMIO_SHMUL: entity work.shmul_acu_mmio_peripheral_template
+	L_ACU_MMIO_SHMUL: entity work.shmul_acu_mmio_peripheral_template(rtl)
 	generic map(
 	   metastable_filter_bypass_acu => false,
 	   metastable_filter_bypass_recover_fsm_n => true,
-	   generate_intr => false,
+	   generate_intr => true,
 	   operand_address => 1,
 	   product_1_address => 2,
 	   product_2_address => 3,
@@ -106,7 +106,7 @@ begin
 		wait for 1 us;
 		
 		address <= X"0001";		-- op 1
-		data_2_write <= X"002A";
+		data_2_write <= X"32FA";
 		generate_write_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_write_cycle <= '0';
@@ -118,15 +118,15 @@ begin
 		wait until falling_edge(busy);
 		generate_write_cycle <= '0';
 
-		wait for 100 us;
+		wait for 10 us;
 
-		address <= X"0006";		-- ready?
-		generate_read_cycle <= '1';
-		wait until falling_edge(busy);
-		generate_read_cycle <= '0';
+		--address <= X"0006";		-- ready?
+		--generate_read_cycle <= '1';
+		--wait until falling_edge(busy);
+		--generate_read_cycle <= '0';
 
 		wait for 100 ns;
-		address <= X"0002";		-- product_1?
+		address <= X"0002";		-- product_1
 		generate_read_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_read_cycle <= '0';

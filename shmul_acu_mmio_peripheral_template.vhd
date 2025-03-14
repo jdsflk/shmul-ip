@@ -208,8 +208,8 @@ begin
 			s_ready_2_acu <= '0';
 			s_data_2_acu <= (others => '0');
 			adapter_invalid_state_error <= '0';
-			product <= (others => '0');
-			ready <= '0';
+			--product <= (others => '0');
+			--ready <= '0';
 			operand_counter <= 1;
 			
 		elsif ( rising_edge(clk) ) then
@@ -259,26 +259,27 @@ begin
 					case operand_counter is
 						when 1 => op_1 <= data_from_acu;
 								  operand_counter <= operand_counter + 1;
-						          state <= idle;
+						          state <= wait_for_deassert_strobes;
 						when 2 => op_2 <= data_from_acu;
 						          operand_counter <= 1;
 								  state <= send_start;
-						when others => state <= idle;
+						when others => state <= wait_for_deassert_strobes;
 					end case;
 				else 
 					case operand_counter is
 						when 1 => op_1 <= op_1(31 downto 16) & data_from_acu;
-						          state <= idle;
+						          state <= wait_for_deassert_strobes;
 								  operand_counter <= operand_counter + 1;
 						when 2 => op_1 <= data_from_acu & op_1(15 downto 0);
-								  state <= idle;
+								  state <= wait_for_deassert_strobes;
 								  operand_counter <= operand_counter + 1;
 						when 3 => op_2 <= op_2(31 downto 16) & data_from_acu;
-						           state <= idle;
+						           state <= wait_for_deassert_strobes;
 								   operand_counter <= operand_counter + 1;
 						when 4 => op_2 <= data_from_acu & op_2(15 downto 0);
 						          operand_counter <= 1;
 								  state <= send_start;
+						when others => state <= wait_for_deassert_strobes;
 					end case;
 					end if;
 									
@@ -287,26 +288,26 @@ begin
 									
 				when wait_for_ready	=>	if(ready = '0') then
 											start <= '0';
-											state <= idle;
+											state <= wait_for_deassert_strobes;
 										end if;	
 									
-				when read_ready			=>	data_2_acu <= (others => ready);
-											state <= idle;
+				when read_ready			=>	s_data_2_acu <= (others => ready);
+											state <= wait_for_deassert_strobes;
 									
-				when read_product_1		=>	data_2_acu <= product(15 downto 0);
-											state <= idle;
+				when read_product_1		=>	s_data_2_acu <= product(15 downto 0);
+											state <= wait_for_deassert_strobes;
 
-				when read_product_2		=>	data_2_acu <= product(31 downto 16);
-											state <= idle;
+				when read_product_2		=>	s_data_2_acu <= product(31 downto 16);
+											state <= wait_for_deassert_strobes;
 									
-				when read_product_3		=>	data_2_acu <= product(47 downto 32);
-											state <= idle;
+				when read_product_3		=>	s_data_2_acu <= product(47 downto 32);
+											state <= wait_for_deassert_strobes;
 
-				when read_product_4		=>	data_2_acu <= product(63 downto 48);
-											state <= idle;
+				when read_product_4		=>	s_data_2_acu <= product(63 downto 48);
+											state <= wait_for_deassert_strobes;
 				
 				when write_intr_en      =>  interrupt_enable <= data_from_acu(1);
-				                            state <= idle;
+				                            state <= wait_for_deassert_strobes;
 				
 				----------------------------------------------------------------------------------------------
 				
@@ -319,8 +320,8 @@ begin
 				when error	=>	-- reset all
 								s_ready_2_acu <= '0';
 								s_data_2_acu <= (others => '0');
-			                    product <= (others => '0');
-			                    ready <= '0';
+			                    --product <= (others => '0');
+			                    --ready <= '0';
 			                    operand_counter <= 1;
 								
 								if ( recover_fsm_n_internal = '0' ) then
@@ -338,7 +339,7 @@ begin
 	--------------------------------------------------------
 	--------------------------------------------------------
 	
-	L_USER_LOGIC:    entity work.shmul
+	L_USER_LOGIC:    entity work.shmul(rtl)
 					 generic map(
 						operand_size => operand_size
 					)
