@@ -26,7 +26,7 @@ architecture rtl of shmul is
   type state_t is (wait_for_start, init, check_for_sign, check_addition, shift, check_if_done, done, error);
   signal state : state_t;
 
-  signal B                       : std_logic_vector (operand_size - 1 downto 0);
+  signal B                       : std_logic_vector (2 * operand_size - 1 downto 0);
   signal Q                       : std_logic_vector (operand_size - 1 downto 0);
   signal A                       : std_logic_vector (2 * operand_size - 1 downto 0);
   signal N                       : integer range 0 to 32;
@@ -54,13 +54,16 @@ begin
                 when wait_for_start =>
                     ready <= '1';
                     if (start = '1') then
+                        B <= ((others => '0'));
+                        Q <= ((others => '0'));
                         state <= init;
                     end if;
                 when init =>
-                    B <= op_1;
+                    B <= B(2*operand_size-1 downto operand_size) & op_1;
                     Q <= op_2;
                     A <= (others => '0');
 					N <= operand_size;
+                    temp_product <= ((others => '0'));
                     ready <= '0';
                     state <= check_for_sign;
                 when check_for_sign =>
@@ -71,7 +74,7 @@ begin
                     end if;
                     -- maybe we need a separate state to do this
                     if(B(operand_size -1) = '1') then
-                        B <= std_logic_vector(-signed(B));
+                        B(operand_size-1 downto 0) <= std_logic_vector(-signed(B(operand_size-1 downto 0)));
                     end if;
                     if(Q(operand_size -1) = '1') then
                         Q <= std_logic_vector(-signed(Q));
@@ -83,14 +86,18 @@ begin
                     end if;
                     state <= shift;
                 when shift =>
-                    B <= (B(operand_size - 2 downto 0) & '0');
+                    B <= (B(2 * operand_size - 2 downto 0) & '0');
                     Q <= ('0' & Q(operand_size -1 downto 1));
                     N <= N - 1;
                     state <= check_if_done;
                 when check_if_done =>
                     if(N = 0) then
-                        if(negative_result = '1') then
-                            temp_product <= std_logic_vector(-signed(A));
+                        if(negative_result = '1') then 
+                            if (operand_size = 32) then
+                                temp_product <= std_logic_vector(-signed(A));
+                            else
+                            temp_product <= not temp_product(63 downto 2* operand_size) & std_logic_vector(-signed(A));
+                            end if;
                         else
                             if (operand_size = 32) then
                                 temp_product <= A;

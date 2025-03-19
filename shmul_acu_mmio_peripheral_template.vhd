@@ -208,8 +208,8 @@ begin
 			s_ready_2_acu <= '0';
 			s_data_2_acu <= (others => '0');
 			adapter_invalid_state_error <= '0';
-			--product <= (others => '0');
-			--ready <= '0';
+			op_1 <= (others => '0');
+			op_2 <= (others => '0');
 			operand_counter <= 1;
 			
 		elsif ( rising_edge(clk) ) then
@@ -268,14 +268,14 @@ begin
 				else 
 					case operand_counter is
 						when 1 => op_1 <= op_1(31 downto 16) & data_from_acu;
+								  operand_counter <= operand_counter + 1;
 						          state <= wait_for_deassert_strobes;
-								  operand_counter <= operand_counter + 1;
 						when 2 => op_1 <= data_from_acu & op_1(15 downto 0);
-								  state <= wait_for_deassert_strobes;
 								  operand_counter <= operand_counter + 1;
+								  state <= wait_for_deassert_strobes;
 						when 3 => op_2 <= op_2(31 downto 16) & data_from_acu;
-						           state <= wait_for_deassert_strobes;
 								   operand_counter <= operand_counter + 1;
+						           state <= wait_for_deassert_strobes;
 						when 4 => op_2 <= data_from_acu & op_2(15 downto 0);
 						          operand_counter <= 1;
 								  state <= send_start;
@@ -291,7 +291,7 @@ begin
 											state <= wait_for_deassert_strobes;
 										end if;	
 									
-				when read_ready			=>	s_data_2_acu <= (others => ready);
+				when read_ready			=>	s_data_2_acu(0) <= ready;
 											state <= wait_for_deassert_strobes;
 									
 				when read_product_1		=>	s_data_2_acu <= product(15 downto 0);
@@ -306,7 +306,7 @@ begin
 				when read_product_4		=>	s_data_2_acu <= product(63 downto 48);
 											state <= wait_for_deassert_strobes;
 				
-				when write_intr_en      =>  interrupt_enable <= data_from_acu(1);
+				when write_intr_en      =>  interrupt_enable <= data_from_acu(0);
 				                            state <= wait_for_deassert_strobes;
 				
 				----------------------------------------------------------------------------------------------

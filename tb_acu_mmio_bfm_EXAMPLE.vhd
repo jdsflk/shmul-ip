@@ -1,5 +1,8 @@
 library ieee;
 use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+
 ---------------------------------------------------------------------------------------------------
 entity tb_acu_mmio_bfm is
 end entity tb_acu_mmio_bfm;
@@ -27,7 +30,12 @@ architecture behavior of tb_acu_mmio_bfm is
 	signal uart_data:								std_logic_vector (15 downto 0);
 	signal rx:										std_logic						:= '1';
 	signal tx:										std_logic;
+	signal absol:									std_logic_vector (63 downto 0);
+	signal concat:									std_logic_vector (63 downto 0);
 
+	signal largenum1: std_logic_vector(31 downto 0);
+	signal largenum2: std_logic_vector(31 downto 0);
+	signal ready_val: std_logic;
 begin
 
 	L_CLOCK_BFM: process
@@ -65,7 +73,7 @@ begin
 							data_2_dmem								=> acu_data
 						);
 	
-	L_ACU_MMIO_SHMUL: entity work.shmul_acu_mmio_peripheral_template(rtl)
+	L_ACU_MMIO_SHMUL_SMALL: entity work.shmul_acu_mmio_peripheral_template(rtl)
 	generic map(
 	   metastable_filter_bypass_acu => false,
 	   metastable_filter_bypass_recover_fsm_n => true,
@@ -95,6 +103,36 @@ begin
 	   recover_fsm_n_ack => open
     );
 
+	L_ACU_MMIO_SHMUL_LARGE: entity work.shmul_acu_mmio_peripheral_template(rtl)
+	generic map(
+	   metastable_filter_bypass_acu => false,
+	   metastable_filter_bypass_recover_fsm_n => true,
+	   generate_intr => true,
+	   operand_address => 8,
+	   product_1_address => 9,
+	   product_2_address => 10,
+	   product_3_address => 11,
+	   product_4_address => 12,
+	   ready_address => 13,
+	   intr_en_address => 14,
+	   operand_size => 32
+    )
+	port map(
+	   clk => clk_uart,
+	   raw_reset_n => raw_reset_n,
+	   read_strobe_from_acu => acu_read_strobe,
+	   write_strobe_from_acu => acu_write_strobe,
+	   ready_2_acu => uart_ready,
+	   address_from_acu => acu_address,
+	   data_from_acu => acu_data,
+	   data_2_acu => uart_data,
+	   intr_rqst => uart_intr_rqst,
+	   intr_ack => acu_intr_ack,
+	   invalid_state_error => open,
+	   recover_fsm_n => '1',
+	   recover_fsm_n_ack => open
+    );
+
 	L_TEST_SEQUENCE: process
 	begin
 	
@@ -102,53 +140,553 @@ begin
 		raw_reset_n <= '0';
 		wait for 100 ns;
 		raw_reset_n <= '1';
-		
 		wait for 1 us;
 		
-		address <= X"0001";		-- op 1
-		data_2_write <= X"32FA";
+		L_TEST_POS_POS_LARGE:
+
+		largenum1 <= std_logic_vector(to_signed(1500000, 32));
+		largenum2 <= std_logic_vector(to_signed(1500000, 32));
+		
+		address <= X"0008";		-- op 1 also
+		data_2_write <= largenum1(15 downto 0);
 		generate_write_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_write_cycle <= '0';
 
 		wait for 100 ns;
-		address <= X"0001";		-- op 2
-		data_2_write <= X"002A";
+		address <= X"0008";		-- op 1 felso
+		data_2_write <= largenum1(31 downto 16);
 		generate_write_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_write_cycle <= '0';
 
-		wait for 10 us;
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 also
+		data_2_write <= largenum2(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
 
-		--address <= X"0006";		-- ready?
-		--generate_read_cycle <= '1';
-		--wait until falling_edge(busy);
-		--generate_read_cycle <= '0';
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 felso
+		data_2_write <= largenum2(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"000D";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0009";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000A";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000B";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000C";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+
+		assert concat = std_logic_vector(to_signed(1500000*1500000, 64)) report "Large positive-positive multiplication failed" severity FAILURE;
+		assert concat(63) = '0' report "Positive times positive should be positive" severity WARNING;
+	
+		L_TEST_POS_NEG_LARGE:
+		wait for 100ns;
+		largenum1 <= std_logic_vector(to_signed(1500000, 32));
+		largenum2 <= std_logic_vector(to_signed(-1500000, 32));
+		
+		address <= X"0008";		-- op 1 also
+		data_2_write <= largenum1(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 1 felso
+		data_2_write <= largenum1(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 also
+		data_2_write <= largenum2(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 felso
+		data_2_write <= largenum2(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"000D";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0009";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000A";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000B";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000C";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed(1500000*(-1500000), 64)) report "Large positive-negative multiplication failed" severity FAILURE;
+		assert concat(63) = '1' report "Positive times negative should be negative" severity WARNING;
+	
+		L_TEST_NEG_POS_LARGE:
+		wait for 100 ns;
+		largenum1 <= std_logic_vector(to_signed(-1500000, 32));
+		largenum2 <= std_logic_vector(to_signed(1500000, 32));
+		
+		address <= X"0008";		-- op 1 also
+		data_2_write <= largenum1(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 1 felso
+		data_2_write <= largenum1(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 also
+		data_2_write <= largenum2(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 felso
+		data_2_write <= largenum2(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"000D";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0009";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000A";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000B";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000C";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed((-1500000)*1500000, 64)) report "Large negative-positive multiplication failed" severity FAILURE;
+		assert concat(63) = '1' report "Negative times positive should be positive" severity WARNING;
+
+		L_TEST_NEG_NEG_LARGE:
+		wait for 100ns;
+		largenum1 <= std_logic_vector(to_signed(-1500000, 32));
+		largenum2 <= std_logic_vector(to_signed(-1500000, 32));
+		
+		address <= X"0008";		-- op 1 also
+		data_2_write <= largenum1(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 1 felso
+		data_2_write <= largenum1(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 also
+		data_2_write <= largenum2(15 downto 0);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
+		address <= X"0008";		-- op 2 felso
+		data_2_write <= largenum2(31 downto 16);
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"000D";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0009";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000A";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000B";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"000C";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed((-1500000)*(-1500000), 64)) report "Large negative-negative multiplication failed" severity FAILURE;
+		assert concat(63) = '0' report "Negative times negative should be positive" severity WARNING;
+		
+		L_TEST_POS_POS_SMALL:
+		wait for 100 ns;
+		
+		address <= X"0001";		-- op 1 also
+		data_2_write <= std_logic_vector(to_signed(42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+
+		wait for 100 ns;
+		address <= X"0001";		-- op 2 also
+		data_2_write <= std_logic_vector(to_signed(42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"0006";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
 
 		wait for 100 ns;
 		address <= X"0002";		-- product_1
 		generate_read_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
 
 		wait for 100 ns;
 		address <= X"0003";		-- product_2
 		generate_read_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
 
 		wait for 100 ns;
 		address <= X"0004";		-- product_3
 		generate_read_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
 
 		wait for 100 ns;
 		address <= X"0005";		-- product_4
 		generate_read_cycle <= '1';
 		wait until falling_edge(busy);
 		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed(42*42, 64)) report "Small positive-positive multiplication failed" severity FAILURE;
+		assert concat(63) = '0' report "Positive times positive should be positive" severity WARNING;
 	
+
+		L_TEST_POS_NEG_SMALL:
+		wait for 100 ns;
+		
+		address <= X"0001";		-- op 1 also
+		data_2_write <= std_logic_vector(to_signed(42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+
+		wait for 100 ns;
+		address <= X"0001";		-- op 2 also
+		data_2_write <= std_logic_vector(to_signed(-42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"0006";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0002";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0003";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0004";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0005";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed(42*(-42), 64)) report "Small positive-negative multiplication failed" severity FAILURE;
+		assert concat(63) = '1' report "Positive times negative should be negative" severity WARNING;
+		
+		L_TEST_NEG_POS_SMALL:
+		wait for 100 ns;
+		
+		address <= X"0001";		-- op 1 also
+		data_2_write <= std_logic_vector(to_signed(-42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+
+		wait for 100 ns;
+		address <= X"0001";		-- op 2 also
+		data_2_write <= std_logic_vector(to_signed(42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"0006";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0002";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0003";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0004";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0005";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed(42*(-42), 64)) report "Small negative-positive multiplication failed" severity FAILURE;
+		assert concat(63) = '1' report "Negative times positive should be negative" severity WARNING;
+		
+		
+
+		L_TEST_NEG_NEG_SMALL:
+		wait for 100 ns;
+		
+		address <= X"0001";		-- op 1 also
+		data_2_write <= std_logic_vector(to_signed(-42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+
+		wait for 100 ns;
+		address <= X"0001";		-- op 2 also
+		data_2_write <= std_logic_vector(to_signed(-42, 16));
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 1 us;
+
+		address <= X"0006";		-- ready?
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		ready_val <= data_read(0);
+
+		assert ready_val = '1' report "Ready is not 1" severity WARNING;
+
+		wait for 100 ns;
+		address <= X"0002";		-- product_1
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(15 downto 0) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0003";		-- product_2
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(31 downto 16) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0004";		-- product_3
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+		concat(47 downto 32) <= data_read;
+
+		wait for 100 ns;
+		address <= X"0005";		-- product_4
+		generate_read_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_read_cycle <= '0';
+
+		concat(63 downto 48) <= data_read;
+		wait for 100 ns;
+
+		assert concat = std_logic_vector(to_signed((-42)*(-42), 64)) report "Small negative-negative multiplication failed" severity FAILURE;
+		assert concat(63) = '0' report "Negative times negative should be positive" severity WARNING;
+
+		
 		wait;
 	end process;
 
