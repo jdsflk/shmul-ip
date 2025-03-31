@@ -157,6 +157,7 @@ begin
 	
 	L_INTR_GENERATION: block
 	begin
+		user_logic_intr_output <= ready;
 		x <= user_logic_intr_output when interrupt_enable = '1' else '0';
 		user_intr_rqst <= x when generate_intr = true else '0';
 		
@@ -257,26 +258,26 @@ begin
 				when write_operand	=>	
 				if(number_of_cycles = 1) then
 					case operand_counter is
-						when 1 => op_1 <= data_from_acu;
+						when 1 => op_1 <= data_from_acu(operand_size-1 downto 0);
 								  operand_counter <= operand_counter + 1;
 						          state <= wait_for_deassert_strobes;
-						when 2 => op_2 <= data_from_acu;
+						when 2 => op_2 <= data_from_acu(operand_size-1 downto 0);
 						          operand_counter <= 1;
 								  state <= send_start;
 						when others => state <= wait_for_deassert_strobes;
 					end case;
 				else 
 					case operand_counter is
-						when 1 => op_1 <= op_1(31 downto 16) & data_from_acu;
+						when 1 => op_1 <= op_1(operand_size-1 downto 16) & data_from_acu;
 								  operand_counter <= operand_counter + 1;
 						          state <= wait_for_deassert_strobes;
-						when 2 => op_1 <= data_from_acu & op_1(15 downto 0);
+						when 2 => op_1 <= data_from_acu(operand_size-17 downto 0) & op_1(15 downto 0);
 								  operand_counter <= operand_counter + 1;
 								  state <= wait_for_deassert_strobes;
-						when 3 => op_2 <= op_2(31 downto 16) & data_from_acu;
+						when 3 => op_2 <= op_2(operand_size-1 downto 16) & data_from_acu;
 								   operand_counter <= operand_counter + 1;
 						           state <= wait_for_deassert_strobes;
-						when 4 => op_2 <= data_from_acu & op_2(15 downto 0);
+						when 4 => op_2 <= data_from_acu(operand_size-17 downto 0) & op_2(15 downto 0);
 						          operand_counter <= 1;
 								  state <= send_start;
 						when others => state <= wait_for_deassert_strobes;
@@ -320,8 +321,6 @@ begin
 				when error	=>	-- reset all
 								s_ready_2_acu <= '0';
 								s_data_2_acu <= (others => '0');
-			                    --product <= (others => '0');
-			                    --ready <= '0';
 			                    operand_counter <= 1;
 								
 								if ( recover_fsm_n_internal = '0' ) then
