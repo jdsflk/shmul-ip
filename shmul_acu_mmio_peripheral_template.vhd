@@ -4,17 +4,17 @@ use ieee.numeric_std.all;
 ---------------------------------------------------------------------------------------------------
 entity shmul_acu_mmio_peripheral_template is
 	generic (
-		metastable_filter_bypass_acu:			boolean;
-		metastable_filter_bypass_recover_fsm_n:	boolean;
-		generate_intr:							boolean;
-		operand_address: 						integer range 0 to 65535;
-		product_1_address: 						integer range 0 to 65535;
-		product_2_address: 						integer range 0 to 65535;
-		product_3_address: 						integer range 0 to 65535;
-		product_4_address: 						integer range 0 to 65535;
-		ready_address: 							integer range 0 to 65535;
-		intr_en_address: 						integer range 0 to 65535;
-		operand_size:                           integer range 1 to 32
+		metastable_filter_bypass_acu:			boolean := false;
+		metastable_filter_bypass_recover_fsm_n:	boolean := true;
+		generate_intr:							boolean := false;
+		operand_address: 						integer range 0 to 65535 := 0;
+		product_1_address: 						integer range 0 to 65535 := 1;
+		product_2_address: 						integer range 0 to 65535 := 2;
+		product_3_address: 						integer range 0 to 65535 := 3;
+		product_4_address: 						integer range 0 to 65535 := 4;
+		ready_address: 							integer range 0 to 65535 := 5;
+		intr_en_address: 						integer range 0 to 65535 := 6;
+		operand_size:                           integer range 1 to 32 := 32
 	);
 	
 	port (
@@ -92,12 +92,9 @@ architecture rtl of shmul_acu_mmio_peripheral_template is
 	signal product:							std_logic_vector (63 downto 0);
 
 	signal operand_counter: integer range 1 to 4;
-	signal number_of_cycles: integer range 1 to 2;
 	signal x: std_logic;
 	
 begin
-	
-	number_of_cycles <= 1 when operand_size < 17 else 2;
 
 	-- Reset circuitry: Active-LOW asynchronous assert, synchronous deassert with meta-stable filter.
 	L_RESET_CIRCUITRY:	process ( clk, raw_reset_n )
@@ -256,7 +253,7 @@ begin
 				----------------------------------------------------------------------------------------------
 				
 				when write_operand	=>	
-				if(number_of_cycles = 1) then
+				if(operand_size < 17) then
 					case operand_counter is
 						when 1 => op_1 <= data_from_acu(operand_size-1 downto 0);
 								  operand_counter <= operand_counter + 1;

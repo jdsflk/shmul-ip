@@ -5,7 +5,7 @@ use ieee.math_real.all;
 
 entity shmul is
   generic (
-    operand_size : integer range 1 to 32
+    operand_size : integer range 1 to 32 := 32
   );
 
   port (
