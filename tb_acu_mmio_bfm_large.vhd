@@ -28,9 +28,6 @@ architecture behavior of tb_acu_mmio_bfm_large is
 	signal acu_address:								std_logic_vector (15 downto 0);
 	signal acu_data:								std_logic_vector (15 downto 0);
 	signal uart_data:								std_logic_vector (15 downto 0);
-	signal rx:										std_logic						:= '1';
-	signal tx:										std_logic;
-	signal absol:									std_logic_vector (63 downto 0);
 	signal concat:									std_logic_vector (63 downto 0);
 
 	signal largenum1: std_logic_vector(31 downto 0);
@@ -124,6 +121,13 @@ begin
 		
 		wait for 100 ns;
 		
+		address <= X"000E";		--intr off
+		data_2_write <= X"0000";
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
+		wait for 100 ns;
 		address <= X"0008";		-- op 1 also
 		data_2_write <= largenum1(15 downto 0);
 		generate_write_cycle <= '1';
@@ -199,6 +203,13 @@ begin
 		largenum1 <= std_logic_vector(to_signed(1500000, 32));
 		largenum2 <= std_logic_vector(to_signed(-1500000, 32));
 		
+		wait for 100 ns;
+		address <= X"000E";		--intr on
+		data_2_write <= X"0001";
+		generate_write_cycle <= '1';
+		wait until falling_edge(busy);
+		generate_write_cycle <= '0';
+
 		wait for 100 ns;
 		address <= X"0008";		-- op 1 also
 		data_2_write <= largenum1(15 downto 0);

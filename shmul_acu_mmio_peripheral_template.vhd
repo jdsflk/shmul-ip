@@ -66,6 +66,8 @@ architecture rtl of shmul_acu_mmio_peripheral_template is
 	signal user_intr_rqst_rising:			std_logic;
 
 	signal interrupt_enable:     		    std_logic;
+	signal ready_intr_rqst_rising:			std_logic;
+	signal ready_d:							std_logic;
 	
 	type state_t is (
 		idle,
@@ -154,7 +156,7 @@ begin
 	
 	L_INTR_GENERATION: block
 	begin
-		user_logic_intr_output <= ready;
+		user_logic_intr_output <= ready_intr_rqst_rising;
 		x <= user_logic_intr_output when interrupt_enable = '1' else '0';
 		user_intr_rqst <= x when generate_intr = true else '0';
 		
@@ -175,6 +177,17 @@ begin
 			end if;
 		end process;
 		user_intr_rqst_rising <= user_intr_rqst and not user_intr_rqst_d;
+
+
+		process ( clk, as_reset_n )
+		begin
+			if ( as_reset_n = '0' ) then
+				ready_d <= '0';
+			elsif ( rising_edge(clk) ) then
+				ready_d <= ready;
+			end if;
+		end process;
+		ready_intr_rqst_rising <= ready and not ready_d;
 		
 	end block;
 	
